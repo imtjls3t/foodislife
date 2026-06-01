@@ -1,0 +1,17 @@
+{
+  "name": "FoodIsLife",
+  "short_name": "FoodIsLife",
+  "description": "Recipes, cooking mode, scaling, and nutrition estimates.",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#f8f6f0",
+  "theme_color": "#172017",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
