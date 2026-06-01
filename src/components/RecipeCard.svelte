@@ -1,8 +1,7 @@
 <script>
-  import { formatRelative, recipePreviewLines } from '../lib/recipeUtils.js';
+  import { formatRelative } from '../lib/recipeUtils.js';
 
   let { recipe, onOpen } = $props();
-  let lines = $derived(recipePreviewLines(recipe, 10));
 </script>
 
 <button class="recipe-card" onclick={() => onOpen(recipe)} aria-label={`Open ${recipe.title}`}>
@@ -15,16 +14,6 @@
       <span class:stale={recipe.macro_estimate.stale}>Macros</span>
     {/if}
   </div>
-
-  {#if lines.length}
-    <div class="preview">
-      {#each lines as line}
-        <p>{line}</p>
-      {/each}
-    </div>
-  {:else}
-    <p class="empty">No ingredients or steps yet</p>
-  {/if}
 </button>
 
 <style>
@@ -47,10 +36,9 @@
 
   .card-head {
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     justify-content: space-between;
     gap: 12px;
-    margin-bottom: 12px;
   }
 
   h2,
@@ -63,8 +51,7 @@
     line-height: 1.25;
   }
 
-  .card-head p,
-  .empty {
+  .card-head p {
     margin-top: 4px;
     color: #786f60;
     font-size: 13px;
@@ -83,20 +70,5 @@
   span.stale {
     background: #f3d09a;
     color: #4b3210;
-  }
-
-  .preview {
-    display: grid;
-    gap: 4px;
-    color: #3a382f;
-    font-size: 14px;
-    line-height: 1.35;
-  }
-
-  .preview p {
-    overflow: hidden;
-    display: -webkit-box;
-    -webkit-line-clamp: 1;
-    -webkit-box-orient: vertical;
   }
 </style>
