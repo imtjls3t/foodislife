@@ -1,5 +1,20 @@
 export const VOLUME_UNITS = new Set(['tsp', 'tbsp', 'cup', 'cups', 'ml', 'l']);
 export const MASS_UNITS = new Set(['g', 'gram', 'grams', 'kg', 'oz', 'lb']);
+const DECIMAL_ONLY_UNITS = new Set(['g', 'gram', 'grams', 'kg', 'ml', 'l', 'oz', 'lb']);
+const COMMON_FRACTIONS = [
+  [1 / 16, '1/16'],
+  [1 / 8, '1/8'],
+  [1 / 6, '1/6'],
+  [1 / 4, '1/4'],
+  [1 / 3, '1/3'],
+  [3 / 8, '3/8'],
+  [1 / 2, '1/2'],
+  [5 / 8, '5/8'],
+  [2 / 3, '2/3'],
+  [3 / 4, '3/4'],
+  [5 / 6, '5/6'],
+  [7 / 8, '7/8'],
+];
 
 export function makeId(prefix = 'id') {
   if (globalThis.crypto?.randomUUID) return `${prefix}_${globalThis.crypto.randomUUID()}`;
@@ -121,13 +136,14 @@ export function formatQuantity(ingredient, scale = 1) {
 
   if (VOLUME_UNITS.has(unit)) {
     const value = (amount || 0) * scale;
-    const displayUnit = unit === 'cup' && Math.abs(value - 1) !== 0 ? 'cups' : unit;
+    const displayUnit = displayUnitForQuantity(unit, value);
     const gramText = grams !== null ? ` (${formatNumber(grams * scale)} g)` : '';
-    return `${formatNumber(value)} ${displayUnit}${gramText}`;
+    return `${formatRecipeAmount(value, unit)} ${displayUnit}${gramText}`;
   }
 
   if (amount !== null) {
-    return `${formatNumber(amount * scale)}${unit ? ` ${unit}` : ''}`;
+    const value = amount * scale;
+    return `${formatRecipeAmount(value, unit)}${unit ? ` ${displayUnitForQuantity(unit, value)}` : ''}`;
   }
 
   return grams !== null ? `${formatNumber(grams * scale)} g` : '';
@@ -141,6 +157,37 @@ export function formatNumber(value) {
   if (abs >= 10) return String(Math.round(value * 10) / 10).replace(/\.0$/, '');
   if (abs >= 1) return String(Math.round(value * 10) / 10).replace(/\.0$/, '');
   return String(Math.round(value * 100) / 100).replace(/\.00?$/, '');
+}
+
+export function formatRecipeAmount(value, unit = '') {
+  if (!Number.isFinite(value)) return '';
+  if (DECIMAL_ONLY_UNITS.has(normalizeUnit(unit))) return formatNumber(value);
+  return formatCommonFraction(value) || formatNumber(value);
+}
+
+export function formatCommonFraction(value) {
+  if (!Number.isFinite(value)) return '';
+  const sign = value < 0 ? '-' : '';
+  const abs = Math.abs(value);
+  const whole = Math.floor(abs);
+  const remainder = abs - whole;
+
+  if (remainder < 0.001) return `${sign}${whole}`;
+
+  const match = COMMON_FRACTIONS.find(([decimal]) => Math.abs(remainder - decimal) < 0.015);
+  if (!match) return '';
+
+  const fraction = match[1];
+  if (whole === 0) return `${sign}${fraction}`;
+  return `${sign}${whole} ${fraction}`;
+}
+
+function displayUnitForQuantity(unit, value) {
+  const normalized = normalizeUnit(unit);
+  if (normalized === 'cup') {
+    return Math.abs(value) > 1 ? 'cups' : 'cup';
+  }
+  return normalized;
 }
 
 export function recipePreviewLines(recipe, maxLines = 10) {
