@@ -7,8 +7,12 @@
   let query = $state('');
   let recipes = $state([]);
   let loading = $state(false);
+  let refreshing = $state(false);
+  let pullDistance = $state(0);
   let error = $state('');
   let searchTimeout = null;
+  let touchStartY = 0;
+  let pulling = false;
 
   $effect(() => {
     clearTimeout(searchTimeout);
@@ -28,12 +32,61 @@
     loading = false;
   }
 
+  async function refreshRecipes() {
+    refreshing = true;
+    error = '';
+    try {
+      recipes = await listRecipes(query);
+    } catch (err) {
+      error = err.message;
+    }
+    refreshing = false;
+    pullDistance = 0;
+  }
+
+  function handleTouchStart(event) {
+    if (window.scrollY !== 0) return;
+    touchStartY = event.touches[0].clientY;
+    pulling = true;
+  }
+
+  function handleTouchMove(event) {
+    if (!pulling || refreshing) return;
+    const distance = event.touches[0].clientY - touchStartY;
+    if (distance <= 0) {
+      pullDistance = 0;
+      return;
+    }
+    pullDistance = Math.min(distance * 0.45, 72);
+  }
+
+  function handleTouchEnd() {
+    if (!pulling) return;
+    pulling = false;
+    if (pullDistance >= 56) {
+      refreshRecipes();
+    } else {
+      pullDistance = 0;
+    }
+  }
+
   async function logout() {
     await supabase.auth.signOut();
   }
 </script>
 
-<main class="list-view">
+<main
+  class="list-view"
+  ontouchstart={handleTouchStart}
+  ontouchmove={handleTouchMove}
+  ontouchend={handleTouchEnd}
+  style={`--pull-distance: ${pullDistance}px`}
+>
+  <div class:visible={pullDistance > 8 || refreshing} class="pull-refresh">
+    <div class:spin={refreshing} class="refresh-icon"></div>
+    <span>{refreshing ? 'Refreshing' : 'Pull to refresh'}</span>
+  </div>
+
   <header>
     <div>
       <p class="eyebrow">FoodIsLife</p>
@@ -80,6 +133,54 @@
     width: min(760px, 100%);
     margin: 0 auto;
     padding: max(18px, env(safe-area-inset-top)) 16px 96px;
+    transform: translateY(var(--pull-distance));
+    transition: transform 0.18s ease;
+    touch-action: pan-y;
+  }
+
+  .pull-refresh {
+    position: fixed;
+    top: max(8px, env(safe-area-inset-top));
+    left: 50%;
+    z-index: 4;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border: 1px solid #d7d0bf;
+    border-radius: 999px;
+    background: #fffdf8;
+    color: #4f493f;
+    font-size: 13px;
+    font-weight: 800;
+    opacity: 0;
+    pointer-events: none;
+    transform: translate(-50%, -120%);
+    transition: opacity 0.15s ease, transform 0.18s ease;
+    box-shadow: 0 6px 20px rgba(23, 32, 23, 0.12);
+  }
+
+  .pull-refresh.visible {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+
+  .refresh-icon {
+    width: 16px;
+    height: 16px;
+    border: 2px solid #d7d0bf;
+    border-top-color: #2f6f4e;
+    border-radius: 50%;
+  }
+
+  .refresh-icon.spin {
+    animation: spin 0.75s linear infinite;
+  }
+
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
   }
 
   header {

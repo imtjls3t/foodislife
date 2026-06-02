@@ -12,8 +12,32 @@
   let view = $state('list');
   let selectedRecipeId = $state(null);
   let editingRecipe = $state(null);
+  let suppressHistory = false;
 
   onMount(() => {
+    if (!history.state?.foodislife) {
+      history.replaceState({ foodislife: true, view: 'list' }, '');
+    }
+
+    function handlePopState(event) {
+      const state = event.state;
+      suppressHistory = true;
+      if (!state?.foodislife || state.view === 'list') {
+        showList();
+      } else if (state.view === 'detail' && state.recipeId) {
+        selectedRecipeId = state.recipeId;
+        editingRecipe = null;
+        view = 'detail';
+      } else {
+        showList();
+      }
+      queueMicrotask(() => {
+        suppressHistory = false;
+      });
+    }
+
+    window.addEventListener('popstate', handlePopState);
+
     supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
       session = currentSession;
       loading = false;
@@ -28,25 +52,45 @@
       }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+      subscription.unsubscribe();
+    };
   });
 
   function openRecipe(recipe) {
     selectedRecipeId = recipe.id;
     editingRecipe = null;
     view = 'detail';
+    pushAppHistory({ view: 'detail', recipeId: recipe.id });
   }
 
   function editRecipe(recipe) {
     editingRecipe = recipe;
     selectedRecipeId = recipe.id;
     view = 'edit';
+    pushAppHistory({ view: 'edit', recipeId: recipe.id });
   }
 
   function showList() {
     view = 'list';
     selectedRecipeId = null;
     editingRecipe = null;
+  }
+
+  function navigateList() {
+    showList();
+    pushAppHistory({ view: 'list' });
+  }
+
+  function pushAppHistory(state) {
+    if (suppressHistory) return;
+    const nextState = { foodislife: true, ...state };
+    if (state.view === 'list') {
+      history.replaceState(nextState, '');
+      return;
+    }
+    history.pushState(nextState, '');
   }
 </script>
 
@@ -57,13 +101,13 @@
 {:else if !session}
   <Login />
 {:else if view === 'add'}
-  <AddRecipe onCancel={showList} onSaved={openRecipe} />
+  <AddRecipe onCancel={navigateList} onSaved={openRecipe} />
 {:else if view === 'detail' && selectedRecipeId}
-  <RecipeDetail recipeId={selectedRecipeId} onBack={showList} onEdit={editRecipe} />
+  <RecipeDetail recipeId={selectedRecipeId} onBack={navigateList} onEdit={editRecipe} />
 {:else if view === 'edit' && editingRecipe}
   <EditRecipe recipe={editingRecipe} onCancel={() => openRecipe(editingRecipe)} onSaved={openRecipe} />
 {:else}
-  <RecipeList onAdd={() => view = 'add'} onOpen={openRecipe} />
+  <RecipeList onAdd={() => { view = 'add'; pushAppHistory({ view: 'add' }); }} onOpen={openRecipe} />
 {/if}
 
 <style>
