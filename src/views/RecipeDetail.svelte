@@ -4,10 +4,8 @@
   import { addNote, getRecipe, listNotes } from '../lib/supabase.js';
   import {
     buildStepSegments,
-    extractTimers,
     formatIngredientLine,
     formatTimestamp,
-    formatTimerLabel,
   } from '../lib/recipeUtils.js';
 
   let { recipeId, onBack, onEdit } = $props();
@@ -19,7 +17,6 @@
   let error = $state('');
   let noteText = $state('');
   let savingNote = $state(false);
-  let activeTimers = $state({});
   let cookMode = $state(false);
   let wakeError = $state('');
   let wakeLock = null;
@@ -30,30 +27,6 @@
 
   onDestroy(() => {
     releaseWakeLock();
-  });
-
-  $effect(() => {
-    const hasTimers = Object.values(activeTimers).some((timer) => timer.remaining > 0);
-    if (!hasTimers) return;
-
-    const interval = setInterval(() => {
-      const next = {};
-      const completed = [];
-
-      for (const [id, timer] of Object.entries(activeTimers)) {
-        const remaining = Math.max(timer.remaining - 1, 0);
-        if (remaining === 0) {
-          completed.push(timer);
-        } else {
-          next[id] = { ...timer, remaining };
-        }
-      }
-
-      activeTimers = next;
-      completed.forEach(notifyTimerComplete);
-    }, 1000);
-
-    return () => clearInterval(interval);
   });
 
   $effect(() => {
@@ -78,63 +51,6 @@
       error = err.message;
     }
     loading = false;
-  }
-
-  function getStepTimers(step) {
-    return step.timers?.length ? step.timers : extractTimers(step.text);
-  }
-
-  function startTimer(step, timer) {
-    const id = `${step.id}_${timer.id || timer.label}_${Date.now()}`;
-    activeTimers = {
-      ...activeTimers,
-      [id]: {
-        label: timer.label || formatTimerLabel(timer.seconds),
-        remaining: timer.seconds,
-        total: timer.seconds,
-      },
-    };
-  }
-
-  function cancelTimer(id) {
-    const next = { ...activeTimers };
-    delete next[id];
-    activeTimers = next;
-  }
-
-  function formatClock(seconds) {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
-  }
-
-  function notifyTimerComplete(timer) {
-    if ('vibrate' in navigator) navigator.vibrate([160, 80, 160]);
-    try {
-      const AudioContext = window.AudioContext || window.webkitAudioContext;
-      const context = new AudioContext();
-      const oscillator = context.createOscillator();
-      const gain = context.createGain();
-      oscillator.connect(gain);
-      gain.connect(context.destination);
-      oscillator.frequency.value = 880;
-      gain.gain.setValueAtTime(0.001, context.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.16, context.currentTime + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.001, context.currentTime + 0.4);
-      oscillator.start();
-      oscillator.stop(context.currentTime + 0.45);
-    } catch {
-      // Timer completion still updates visually if audio is unavailable.
-    }
-    activeTimers = {
-      ...activeTimers,
-      [`done_${Date.now()}`]: {
-        label: `${timer.label} done`,
-        remaining: 0,
-        total: 0,
-        done: true,
-      },
-    };
   }
 
   async function toggleCookMode() {
@@ -240,18 +156,6 @@
       {/if}
     </section>
 
-    {#if Object.keys(activeTimers).length}
-      <section class="active-timers" aria-label="Active timers">
-        {#each Object.entries(activeTimers) as [id, timer] (id)}
-          <div class:done={timer.done} class="timer-chip">
-            <span>{timer.label}</span>
-            <strong>{timer.done ? 'Done' : formatClock(timer.remaining)}</strong>
-            <button onclick={() => cancelTimer(id)} aria-label="Dismiss timer">×</button>
-          </div>
-        {/each}
-      </section>
-    {/if}
-
     <MacroPanel macroEstimate={recipe.macro_estimate} />
 
     <section class="section">
@@ -278,15 +182,6 @@
                   {#if segment.bold}<strong>{segment.text}</strong>{:else}{segment.text}{/if}
                 {/each}
               </p>
-              {#if getStepTimers(step).length}
-                <div class="timer-buttons">
-                  {#each getStepTimers(step) as timer}
-                    <button onclick={() => startTimer(step, timer)}>
-                      Start {timer.label || formatTimerLabel(timer.seconds)}
-                    </button>
-                  {/each}
-                </div>
-              {/if}
             </li>
           {/each}
         </ol>
@@ -390,8 +285,7 @@
   }
 
   .hero,
-  .section,
-  .active-timers {
+  .section {
     margin-bottom: 14px;
   }
 
@@ -488,54 +382,6 @@
 
   .muted {
     color: #786f60;
-  }
-
-  .timer-buttons {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    margin-top: 9px;
-  }
-
-  .timer-buttons button {
-    padding: 8px 10px;
-    border: none;
-    border-radius: 8px;
-    background: #dfeadf;
-    color: #214d35;
-    font-size: 13px;
-    font-weight: 800;
-    cursor: pointer;
-  }
-
-  .active-timers {
-    display: grid;
-    gap: 8px;
-  }
-
-  .timer-chip {
-    display: grid;
-    grid-template-columns: 1fr auto 32px;
-    align-items: center;
-    gap: 10px;
-    padding: 10px 12px;
-    border-radius: 8px;
-    background: #2f6f4e;
-    color: #fffdf8;
-  }
-
-  .timer-chip.done {
-    background: #a8432f;
-  }
-
-  .timer-chip button {
-    width: 28px;
-    height: 28px;
-    border: none;
-    border-radius: 8px;
-    background: rgba(255, 255, 255, 0.16);
-    color: currentColor;
-    cursor: pointer;
   }
 
   .note-form {
