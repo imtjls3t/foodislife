@@ -12,9 +12,15 @@
   let view = $state('list');
   let selectedRecipeId = $state(null);
   let editingRecipe = $state(null);
+  let darkMode = $state(false);
+  let themeLoaded = false;
   let suppressHistory = false;
 
   onMount(() => {
+    darkMode = localStorage.getItem('foodislife-dark-mode') === 'true';
+    applyTheme();
+    themeLoaded = true;
+
     if (!history.state?.foodislife) {
       history.replaceState({ foodislife: true, view: 'list' }, '');
     }
@@ -58,6 +64,16 @@
     };
   });
 
+  $effect(() => {
+    if (!themeLoaded) return;
+    applyTheme();
+    localStorage.setItem('foodislife-dark-mode', darkMode ? 'true' : 'false');
+  });
+
+  function applyTheme() {
+    document.documentElement.dataset.theme = darkMode ? 'dark' : 'light';
+  }
+
   function openRecipe(recipe) {
     selectedRecipeId = recipe.id;
     editingRecipe = null;
@@ -70,6 +86,10 @@
     selectedRecipeId = recipe.id;
     view = 'edit';
     pushAppHistory({ view: 'edit', recipeId: recipe.id });
+  }
+
+  function setDarkMode(value) {
+    darkMode = Boolean(value);
   }
 
   function showList() {
@@ -107,7 +127,12 @@
 {:else if view === 'edit' && editingRecipe}
   <EditRecipe recipe={editingRecipe} onCancel={() => openRecipe(editingRecipe)} onSaved={openRecipe} />
 {:else}
-  <RecipeList onAdd={() => { view = 'add'; pushAppHistory({ view: 'add' }); }} onOpen={openRecipe} />
+  <RecipeList
+    {darkMode}
+    onDarkModeChange={setDarkMode}
+    onAdd={() => { view = 'add'; pushAppHistory({ view: 'add' }); }}
+    onOpen={openRecipe}
+  />
 {/if}
 
 <style>
@@ -120,8 +145,8 @@
   .spinner {
     width: 34px;
     height: 34px;
-    border: 3px solid #d7d0bf;
-    border-top-color: #2f6f4e;
+    border: 3px solid var(--color-border);
+    border-top-color: var(--color-accent);
     border-radius: 50%;
     animation: spin 0.8s linear infinite;
   }

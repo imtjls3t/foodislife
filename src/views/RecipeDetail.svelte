@@ -232,7 +232,7 @@
     align-items: center;
     gap: 8px;
     padding: 4px 0 10px;
-    background: rgba(248, 246, 240, 0.94);
+    background: color-mix(in srgb, var(--color-bg) 94%, transparent);
     backdrop-filter: blur(8px);
   }
 
@@ -261,10 +261,10 @@
     height: 42px;
     display: grid;
     place-items: center;
-    border: 1px solid #d7d0bf;
+    border: 1px solid var(--color-border);
     border-radius: 8px;
-    background: #fffdf8;
-    color: #172017;
+    background: var(--color-surface);
+    color: var(--color-text);
     cursor: pointer;
   }
 
@@ -280,7 +280,7 @@
 
   .status {
     margin-top: 48px;
-    color: #786f60;
+    color: var(--color-muted);
     text-align: center;
   }
 
@@ -294,12 +294,12 @@
     gap: 12px;
     padding: 16px;
     border-radius: 8px;
-    background: #172017;
-    color: #fffdf8;
+    background: var(--color-surface-strong);
+    color: var(--color-text-inverse);
   }
 
   .hero > p {
-    color: #d6d0c1;
+    color: var(--color-hero-muted);
     font-size: 13px;
   }
 
@@ -329,8 +329,8 @@
   }
 
   .stepper button {
-    background: #f2b84b;
-    color: #172017;
+    background: var(--color-gold);
+    color: var(--color-surface-strong);
     font-size: 20px;
     font-weight: 900;
   }
@@ -342,27 +342,27 @@
   }
 
   .cook {
-    background: #fffdf8;
-    color: #172017;
+    background: var(--color-surface);
+    color: var(--color-text);
     font-weight: 900;
     cursor: pointer;
   }
 
   .cook.active {
-    background: #f2b84b;
+    background: var(--color-gold);
   }
 
   .wake-error,
   .error {
-    color: #ffd1c6;
+    color: var(--color-danger-soft);
     font-size: 13px;
   }
 
   .section {
     padding: 16px;
-    border: 1px solid #e1d8c9;
+    border: 1px solid var(--color-border-soft);
     border-radius: 8px;
-    background: #fffdf8;
+    background: var(--color-surface);
   }
 
   .ingredients,
@@ -377,11 +377,11 @@
   }
 
   .steps strong {
-    color: #214d35;
+    color: var(--color-accent-text);
   }
 
   .muted {
-    color: #786f60;
+    color: var(--color-muted);
   }
 
   .note-form {
@@ -398,8 +398,8 @@
     min-height: 42px;
     border: none;
     border-radius: 8px;
-    background: #2f6f4e;
-    color: #fffdf8;
+    background: var(--color-accent);
+    color: var(--color-text-inverse);
     font-weight: 800;
     cursor: pointer;
   }
@@ -417,13 +417,13 @@
   .note {
     padding: 12px;
     border-radius: 8px;
-    background: #f8f6f0;
+    background: var(--color-bg);
   }
 
   .note time {
     display: block;
     margin-top: 8px;
-    color: #786f60;
+    color: var(--color-muted);
     font-size: 12px;
   }
 </style>

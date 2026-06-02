@@ -2,7 +2,12 @@
   import { listRecipes, supabase } from '../lib/supabase.js';
   import RecipeCard from '../components/RecipeCard.svelte';
 
-  let { onAdd, onOpen } = $props();
+  let {
+    darkMode = false,
+    onAdd,
+    onDarkModeChange = () => {},
+    onOpen,
+  } = $props();
 
   let query = $state('');
   let recipes = $state([]);
@@ -10,6 +15,7 @@
   let refreshing = $state(false);
   let pullDistance = $state(0);
   let error = $state('');
+  let settingsOpen = $state(false);
   let searchTimeout = null;
   let touchStartY = 0;
   let pulling = false;
@@ -92,8 +98,41 @@
       <p class="eyebrow">FoodIsLife</p>
       <h1>Recipes</h1>
     </div>
-    <button class="logout" onclick={logout}>Logout</button>
+    <div class="header-actions">
+      <button class="toolbar-button" onclick={() => settingsOpen = true}>
+        <svg aria-hidden="true" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="3"></circle>
+          <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1A2 2 0 1 1 4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.3 7A2 2 0 1 1 7 4.2l.1.1a1.7 1.7 0 0 0 1.9.3h.1A1.7 1.7 0 0 0 10 3.1V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.6h.1a1.7 1.7 0 0 0 1.9-.3l.1-.1A2 2 0 1 1 19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9v.1a1.7 1.7 0 0 0 1.6.9h.1a2 2 0 1 1 0 4H21a1.7 1.7 0 0 0-1.6 1Z"></path>
+        </svg>
+        <span>Settings</span>
+      </button>
+      <button class="toolbar-button" onclick={logout}>Logout</button>
+    </div>
   </header>
+
+  {#if settingsOpen}
+    <div class="settings-layer">
+      <button class="settings-backdrop" onclick={() => settingsOpen = false} aria-label="Close settings"></button>
+      <div class="settings-panel" role="dialog" aria-modal="true" aria-label="Settings">
+        <div class="settings-head">
+          <h2>Settings</h2>
+          <button class="icon-close" onclick={() => settingsOpen = false} aria-label="Close settings">
+            <svg aria-hidden="true" viewBox="0 0 24 24">
+              <path d="M18 6 6 18M6 6l12 12"></path>
+            </svg>
+          </button>
+        </div>
+        <label class="setting-row">
+          <span>Dark Mode</span>
+          <input
+            type="checkbox"
+            checked={darkMode}
+            onchange={(event) => onDarkModeChange(event.currentTarget.checked)}
+          />
+        </label>
+      </div>
+    </div>
+  {/if}
 
   <label class="search">
     <span class="sr-only">Search recipes</span>
@@ -147,17 +186,17 @@
     align-items: center;
     gap: 8px;
     padding: 8px 12px;
-    border: 1px solid #d7d0bf;
+    border: 1px solid var(--color-border);
     border-radius: 999px;
-    background: #fffdf8;
-    color: #4f493f;
+    background: var(--color-surface);
+    color: var(--color-muted-strong);
     font-size: 13px;
     font-weight: 800;
     opacity: 0;
     pointer-events: none;
     transform: translate(-50%, -120%);
     transition: opacity 0.15s ease, transform 0.18s ease;
-    box-shadow: 0 6px 20px rgba(23, 32, 23, 0.12);
+    box-shadow: var(--shadow-soft);
   }
 
   .pull-refresh.visible {
@@ -168,8 +207,8 @@
   .refresh-icon {
     width: 16px;
     height: 16px;
-    border: 2px solid #d7d0bf;
-    border-top-color: #2f6f4e;
+    border: 2px solid var(--color-border);
+    border-top-color: var(--color-accent);
     border-radius: 50%;
   }
 
@@ -197,7 +236,7 @@
   }
 
   .eyebrow {
-    color: #2f6f4e;
+    color: var(--color-accent);
     font-size: 12px;
     font-weight: 800;
     letter-spacing: 0;
@@ -208,12 +247,115 @@
     line-height: 1.1;
   }
 
-  .logout {
-    border: 1px solid #d7d0bf;
+  .header-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+
+  .toolbar-button {
+    min-height: 40px;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    border: 1px solid var(--color-border);
     border-radius: 8px;
-    background: #fffdf8;
-    color: #4f493f;
+    background: var(--color-surface);
+    color: var(--color-muted-strong);
     padding: 9px 12px;
+    cursor: pointer;
+  }
+
+  .toolbar-button svg {
+    width: 17px;
+    height: 17px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .settings-layer {
+    position: fixed;
+    inset: 0;
+    z-index: 8;
+    display: grid;
+    align-items: end;
+    padding: 16px;
+  }
+
+  .settings-backdrop {
+    position: absolute;
+    inset: 0;
+    border: none;
+    background: var(--color-overlay);
+    cursor: pointer;
+  }
+
+  .settings-panel {
+    position: relative;
+    z-index: 1;
+    width: min(420px, 100%);
+    margin: 0 auto;
+    padding: 16px;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    background: var(--color-surface);
+    box-shadow: var(--shadow-floating);
+  }
+
+  .settings-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+
+  .settings-head h2 {
+    margin: 0;
+    font-size: 20px;
+  }
+
+  .icon-close {
+    width: 38px;
+    height: 38px;
+    display: grid;
+    place-items: center;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    background: var(--color-surface);
+    color: var(--color-text);
+    cursor: pointer;
+  }
+
+  .icon-close svg {
+    width: 20px;
+    height: 20px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2.2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .setting-row {
+    min-height: 52px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    color: var(--color-text);
+    font-weight: 800;
+  }
+
+  .setting-row input {
+    width: 22px;
+    height: 22px;
+    accent-color: var(--color-accent);
+    box-shadow: none;
     cursor: pointer;
   }
 
@@ -233,7 +375,7 @@
     height: 19px;
     transform: translateY(-50%);
     fill: none;
-    stroke: #786f60;
+    stroke: var(--color-muted);
     stroke-width: 2;
     stroke-linecap: round;
   }
@@ -242,7 +384,7 @@
     width: 100%;
     padding: 14px 14px 14px 44px;
     font-size: 16px;
-    box-shadow: 0 8px 24px rgba(248, 246, 240, 0.85);
+    box-shadow: var(--shadow-input);
   }
 
   .cards {
@@ -253,13 +395,13 @@
   .status,
   .error {
     margin: 48px 0 0;
-    color: #786f60;
+    color: var(--color-muted);
     text-align: center;
   }
 
   .error {
     margin: 0 0 12px;
-    color: #a8432f;
+    color: var(--color-danger);
   }
 
   .add {
@@ -272,9 +414,9 @@
     place-items: center;
     border: none;
     border-radius: 50%;
-    background: #172017;
-    color: #f8f6f0;
-    box-shadow: 0 10px 26px rgba(23, 32, 23, 0.28);
+    background: var(--color-surface-strong);
+    color: var(--color-text-inverse);
+    box-shadow: var(--shadow-floating);
     cursor: pointer;
   }
 

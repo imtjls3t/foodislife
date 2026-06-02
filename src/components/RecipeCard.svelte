@@ -21,13 +21,13 @@
     width: 100%;
     display: block;
     padding: 16px;
-    border: 1px solid #e1d8c9;
+    border: 1px solid var(--color-border-soft);
     border-radius: 8px;
-    background: #fffdf8;
-    color: #172017;
+    background: var(--color-surface);
+    color: var(--color-text);
     text-align: left;
     cursor: pointer;
-    box-shadow: 0 1px 8px rgba(23, 32, 23, 0.06);
+    box-shadow: var(--shadow-card);
   }
 
   .recipe-card:active {
@@ -53,7 +53,7 @@
 
   .card-head p {
     margin-top: 4px;
-    color: #786f60;
+    color: var(--color-muted);
     font-size: 13px;
   }
 
@@ -61,14 +61,14 @@
     flex-shrink: 0;
     padding: 4px 8px;
     border-radius: 999px;
-    background: #dfeadf;
-    color: #214d35;
+    background: var(--color-accent-soft);
+    color: var(--color-accent-text);
     font-size: 12px;
     font-weight: 700;
   }
 
   span.stale {
-    background: #f3d09a;
-    color: #4b3210;
+    background: var(--color-warning);
+    color: var(--color-warning-text);
   }
 </style>

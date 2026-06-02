@@ -64,9 +64,9 @@
 <style>
   .macros {
     padding: 16px;
-    border: 1px solid #d7d0bf;
+    border: 1px solid var(--color-border);
     border-radius: 8px;
-    background: #fffdf8;
+    background: var(--color-surface);
   }
 
   .macro-head {
@@ -90,20 +90,20 @@
   h3 {
     margin-bottom: 8px;
     font-size: 14px;
-    color: #2f6f4e;
+    color: var(--color-accent);
   }
 
   p {
     margin-top: 3px;
-    color: #786f60;
+    color: var(--color-muted);
     font-size: 13px;
   }
 
   .stale {
     padding: 4px 8px;
     border-radius: 999px;
-    background: #f3d09a;
-    color: #4b3210;
+    background: var(--color-warning);
+    color: var(--color-warning-text);
     font-size: 12px;
     font-weight: 700;
   }
@@ -124,12 +124,12 @@
     justify-content: space-between;
     gap: 8px;
     padding: 6px 0;
-    border-top: 1px solid #ece5d9;
+    border-top: 1px solid var(--color-divider);
     font-size: 13px;
   }
 
   .macro-row span {
-    color: #5f584c;
+    color: var(--color-muted-strong);
   }
 
   .macro-row strong {

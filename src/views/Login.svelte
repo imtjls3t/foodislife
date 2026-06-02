@@ -87,8 +87,8 @@
     place-items: center;
     margin-bottom: 14px;
     border-radius: 8px;
-    background: #172017;
-    color: #f2b84b;
+    background: var(--color-surface-strong);
+    color: var(--color-gold);
     font-size: 26px;
     font-weight: 800;
   }
@@ -100,7 +100,7 @@
 
   p {
     margin: 8px 0 0;
-    color: #786f60;
+    color: var(--color-muted);
   }
 
   form {
@@ -114,7 +114,7 @@
   label {
     display: grid;
     gap: 6px;
-    color: #4f493f;
+    color: var(--color-muted-strong);
     font-size: 13px;
     font-weight: 700;
   }
@@ -127,7 +127,7 @@
 
   .message {
     margin: 0;
-    color: #a8432f;
+    color: var(--color-danger);
     font-size: 13px;
     text-align: center;
   }
@@ -136,8 +136,8 @@
     padding: 14px;
     border: none;
     border-radius: 8px;
-    background: #2f6f4e;
-    color: #fffdf8;
+    background: var(--color-accent);
+    color: var(--color-text-inverse);
     font-weight: 800;
     cursor: pointer;
   }
@@ -150,7 +150,7 @@
     margin: 18px auto 0;
     border: none;
     background: none;
-    color: #2f6f4e;
+    color: var(--color-accent);
     cursor: pointer;
   }
 </style>

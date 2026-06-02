@@ -304,7 +304,7 @@
     align-items: center;
     gap: 8px;
     padding: 4px 0 10px;
-    background: rgba(248, 246, 240, 0.94);
+    background: color-mix(in srgb, var(--color-bg) 94%, transparent);
     backdrop-filter: blur(8px);
   }
 
@@ -328,10 +328,10 @@
     height: 42px;
     display: grid;
     place-items: center;
-    border: 1px solid #d7d0bf;
+    border: 1px solid var(--color-border);
     border-radius: 8px;
-    background: #fffdf8;
-    color: #172017;
+    background: var(--color-surface);
+    color: var(--color-text);
     cursor: pointer;
   }
 
@@ -360,8 +360,8 @@
   .primary,
   .primary-small {
     border: none;
-    background: #2f6f4e;
-    color: #fffdf8;
+    background: var(--color-accent);
+    color: var(--color-text-inverse);
   }
 
   .save-top {
@@ -370,9 +370,9 @@
 
   .small {
     padding: 0 12px;
-    border: 1px solid #d7d0bf;
-    background: #fffdf8;
-    color: #172017;
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
+    color: var(--color-text);
   }
 
   .primary-small {
@@ -384,9 +384,9 @@
     gap: 14px;
     margin-bottom: 14px;
     padding: 16px;
-    border: 1px solid #e1d8c9;
+    border: 1px solid var(--color-border-soft);
     border-radius: 8px;
-    background: #fffdf8;
+    background: var(--color-surface);
   }
 
   .section-head {
@@ -398,14 +398,14 @@
 
   .section-head p {
     margin-top: 3px;
-    color: #786f60;
+    color: var(--color-muted);
     font-size: 13px;
   }
 
   label {
     display: grid;
     gap: 7px;
-    color: #4f493f;
+    color: var(--color-muted-strong);
     font-size: 13px;
     font-weight: 800;
   }
@@ -446,8 +446,8 @@
     height: 28px;
     margin-top: 7px;
     border-radius: 50%;
-    background: #dfeadf;
-    color: #214d35;
+    background: var(--color-accent-soft);
+    color: var(--color-accent-text);
     font-size: 13px;
     font-weight: 900;
   }
@@ -459,8 +459,8 @@
     place-items: center;
     border: none;
     border-radius: 8px;
-    background: #f3d7ce;
-    color: #a8432f;
+    background: var(--color-danger-soft);
+    color: var(--color-danger);
     cursor: pointer;
   }
 
@@ -476,9 +476,9 @@
   }
 
   .secondary {
-    border: 1px solid #d7d0bf;
-    background: #fffdf8;
-    color: #172017;
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
+    color: var(--color-text);
   }
 
   button:disabled {
@@ -487,7 +487,7 @@
 
   .error {
     margin: 0 0 12px;
-    color: #a8432f;
+    color: var(--color-danger);
     text-align: center;
   }
 
