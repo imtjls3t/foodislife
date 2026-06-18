@@ -93,22 +93,49 @@
     <span>{refreshing ? 'Refreshing' : 'Pull to refresh'}</span>
   </div>
 
-  <header>
-    <div>
-      <p class="eyebrow">FoodIsLife</p>
-      <h1>Recipes</h1>
-    </div>
-    <div class="header-actions">
-      <button class="toolbar-button" onclick={() => settingsOpen = true}>
-        <svg aria-hidden="true" viewBox="0 0 24 24">
-          <circle cx="12" cy="12" r="3"></circle>
-          <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1A2 2 0 1 1 4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.3 7A2 2 0 1 1 7 4.2l.1.1a1.7 1.7 0 0 0 1.9.3h.1A1.7 1.7 0 0 0 10 3.1V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.6h.1a1.7 1.7 0 0 0 1.9-.3l.1-.1A2 2 0 1 1 19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9v.1a1.7 1.7 0 0 0 1.6.9h.1a2 2 0 1 1 0 4H21a1.7 1.7 0 0 0-1.6 1Z"></path>
-        </svg>
-        <span>Settings</span>
-      </button>
-      <button class="toolbar-button" onclick={logout}>Logout</button>
-    </div>
-  </header>
+  <div class="list-content">
+    <header>
+      <div>
+        <p class="eyebrow">FoodIsLife</p>
+        <h1>Recipes</h1>
+      </div>
+      <div class="header-actions">
+        <button class="toolbar-button" onclick={() => settingsOpen = true}>
+          <svg aria-hidden="true" viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1A2 2 0 1 1 4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.3 7A2 2 0 1 1 7 4.2l.1.1a1.7 1.7 0 0 0 1.9.3h.1A1.7 1.7 0 0 0 10 3.1V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.6h.1a1.7 1.7 0 0 0 1.9-.3l.1-.1A2 2 0 1 1 19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9v.1a1.7 1.7 0 0 0 1.6.9h.1a2 2 0 1 1 0 4H21a1.7 1.7 0 0 0-1.6 1Z"></path>
+          </svg>
+          <span>Settings</span>
+        </button>
+        <button class="toolbar-button" onclick={logout}>Logout</button>
+      </div>
+    </header>
+
+    <label class="search">
+      <span class="sr-only">Search recipes</span>
+      <svg aria-hidden="true" viewBox="0 0 24 24">
+        <circle cx="11" cy="11" r="7"></circle>
+        <path d="m20 20-4-4"></path>
+      </svg>
+      <input type="search" placeholder="Search recipes" bind:value={query} />
+    </label>
+
+    {#if error}
+      <p class="error">{error}</p>
+    {/if}
+
+    <section class="cards" aria-label="Recipe list">
+      {#if loading && recipes.length === 0}
+        <p class="status">Loading recipes...</p>
+      {:else if recipes.length === 0}
+        <p class="status">{query ? 'No matching recipes' : 'No recipes yet'}</p>
+      {:else}
+        {#each recipes as recipe (recipe.id)}
+          <RecipeCard {recipe} {onOpen} />
+        {/each}
+      {/if}
+    </section>
+  </div>
 
   {#if settingsOpen}
     <div class="settings-layer">
@@ -134,31 +161,6 @@
     </div>
   {/if}
 
-  <label class="search">
-    <span class="sr-only">Search recipes</span>
-    <svg aria-hidden="true" viewBox="0 0 24 24">
-      <circle cx="11" cy="11" r="7"></circle>
-      <path d="m20 20-4-4"></path>
-    </svg>
-    <input type="search" placeholder="Search recipes" bind:value={query} />
-  </label>
-
-  {#if error}
-    <p class="error">{error}</p>
-  {/if}
-
-  <section class="cards" aria-label="Recipe list">
-    {#if loading && recipes.length === 0}
-      <p class="status">Loading recipes...</p>
-    {:else if recipes.length === 0}
-      <p class="status">{query ? 'No matching recipes' : 'No recipes yet'}</p>
-    {:else}
-      {#each recipes as recipe (recipe.id)}
-        <RecipeCard {recipe} {onOpen} />
-      {/each}
-    {/if}
-  </section>
-
   <button class="add" onclick={onAdd} aria-label="Add recipe">
     <svg aria-hidden="true" viewBox="0 0 24 24">
       <path d="M12 5v14M5 12h14"></path>
@@ -172,9 +174,12 @@
     width: min(760px, 100%);
     margin: 0 auto;
     padding: max(18px, env(safe-area-inset-top)) 16px 96px;
+    touch-action: pan-y;
+  }
+
+  .list-content {
     transform: translateY(var(--pull-distance));
     transition: transform 0.18s ease;
-    touch-action: pan-y;
   }
 
   .pull-refresh {
@@ -418,6 +423,7 @@
     color: var(--color-text-inverse);
     box-shadow: var(--shadow-floating);
     cursor: pointer;
+    z-index: 6;
   }
 
   .add svg {
