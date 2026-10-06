@@ -49,15 +49,18 @@
         {/each}
       </div>
       <div class="macro-column">
-        <h3>Total</h3>
+        <h3>Per 100 g</h3>
         {#each fields as [key, label, suffix]}
           <div class="macro-row">
             <span>{label}</span>
-            <strong>{valueFor(macroEstimate.total, key, suffix)}</strong>
+            <strong>{valueFor(macroEstimate.per_100g, key, suffix)}</strong>
           </div>
         {/each}
       </div>
     </div>
+    {#if !macroEstimate.per_100g}
+      <p>Recalculate nutrition to see values per 100 g.</p>
+    {/if}
   </section>
 {/if}
 

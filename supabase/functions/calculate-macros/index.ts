@@ -34,10 +34,11 @@ const nutritionFields = {
 const macroSchema = {
   type: "object",
   additionalProperties: false,
-  required: ["per_serving", "total", "notes"],
+  required: ["per_serving", "total", "total_weight_g", "notes"],
   properties: {
     per_serving: nutritionFields,
     total: nutritionFields,
+    total_weight_g: { type: "number" },
     notes: {
       type: "array",
       items: { type: "string" },
@@ -88,6 +89,8 @@ Deno.serve(async (req) => {
             "Return calories as kcal and every macro as grams.",
             "The ingredient quantities are for the whole recipe at base_servings.",
             "total is the whole recipe. per_serving is total divided by base_servings.",
+            "total_weight_g is the estimated edible weight in grams of the whole prepared recipe, and must be positive.",
+            "Use ingredient weights or estimate them from quantities, accounting for cooking water gain or loss and discarded ingredients using the preparation steps. Explain weight assumptions in notes.",
             "Include carbs, protein, fiber, total fat, PUFA, MUFA, and saturated fat.",
             "Use reasonable nutrition knowledge and density estimates when exact data is unavailable.",
             "Do not include extra keys.",
@@ -99,6 +102,7 @@ Deno.serve(async (req) => {
             title: recipe.title,
             base_servings: recipe.base_servings || 1,
             ingredients: recipe.ingredients,
+            steps: recipe.steps || [],
           }),
         },
       ],
@@ -128,9 +132,22 @@ Deno.serve(async (req) => {
 
   try {
     const estimate = JSON.parse(outputText);
+    const totalWeight = estimate.total_weight_g;
+    if (typeof totalWeight !== "number" || !Number.isFinite(totalWeight) || totalWeight <= 0) {
+      return json({ error: "Nutrition estimate is missing a valid recipe weight. Please recalculate." }, 502);
+    }
+    const per100g: Record<string, number> = {};
+    for (const key of nutritionFields.required) {
+      const value = estimate.total?.[key];
+      if (typeof value !== "number" || !Number.isFinite(value) || value < 0) {
+        return json({ error: "Nutrition estimate contains invalid totals. Please recalculate." }, 502);
+      }
+      per100g[key] = value / totalWeight * 100;
+    }
     return json({
       macro_estimate: {
         ...estimate,
+        per_100g: per100g,
         calculated_at: new Date().toISOString(),
         base_servings: recipe.base_servings || 1,
         is_estimate: true,
