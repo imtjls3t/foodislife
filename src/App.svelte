@@ -1,6 +1,7 @@
 <script>
   import { onMount } from 'svelte';
   import { supabase } from './lib/supabase.js';
+  import UpdateBar from './components/UpdateBar.svelte';
   import Login from './views/Login.svelte';
   import ResetPassword from './views/ResetPassword.svelte';
   import RecipeList from './views/RecipeList.svelte';
@@ -153,6 +154,8 @@
     history.pushState(nextState, '');
   }
 </script>
+
+<UpdateBar />
 
 {#if loading}
   <div class="loading">
