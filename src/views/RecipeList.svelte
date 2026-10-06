@@ -4,12 +4,13 @@
 
   let {
     darkMode = false,
+    query = $bindable(''),
     onAdd,
     onDarkModeChange = () => {},
     onOpen,
   } = $props();
 
-  let query = $state('');
+  let searchInput;
   let recipes = $state([]);
   let loading = $state(false);
   let refreshing = $state(false);
@@ -111,14 +112,26 @@
       </div>
     </header>
 
-    <label class="search">
-      <span class="sr-only">Search recipes</span>
-      <svg aria-hidden="true" viewBox="0 0 24 24">
+    <div class="search">
+      <label class="sr-only" for="recipe-search">Search recipes</label>
+      <svg class="search-icon" aria-hidden="true" viewBox="0 0 24 24">
         <circle cx="11" cy="11" r="7"></circle>
         <path d="m20 20-4-4"></path>
       </svg>
-      <input type="search" placeholder="Search recipes" bind:value={query} />
-    </label>
+      <input id="recipe-search" type="search" placeholder="Search recipes" bind:value={query} bind:this={searchInput} />
+      {#if query}
+        <button
+          type="button"
+          class="clear-search"
+          aria-label="Clear search"
+          onclick={() => { query = ''; searchInput?.focus(); }}
+        >
+          <svg aria-hidden="true" viewBox="0 0 24 24">
+            <path d="M18 6 6 18M6 6l12 12"></path>
+          </svg>
+        </button>
+      {/if}
+    </div>
 
     {#if error}
       <p class="error">{error}</p>
@@ -366,13 +379,13 @@
 
   .search {
     position: sticky;
-    top: 8px;
+    top: calc(8px + var(--update-bar-height, 0px));
     z-index: 2;
     display: block;
     margin-bottom: 16px;
   }
 
-  .search svg {
+  .search-icon {
     position: absolute;
     left: 14px;
     top: 50%;
@@ -387,9 +400,47 @@
 
   input {
     width: 100%;
-    padding: 14px 14px 14px 44px;
+    padding: 14px 48px 14px 44px;
     font-size: 16px;
     box-shadow: var(--shadow-input);
+  }
+
+  input[type='search']::-webkit-search-cancel-button {
+    -webkit-appearance: none;
+  }
+
+  .clear-search {
+    position: absolute;
+    right: 4px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 40px;
+    height: 40px;
+    display: grid;
+    place-items: center;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--color-muted);
+    cursor: pointer;
+  }
+
+  .clear-search:hover {
+    color: var(--color-text);
+  }
+
+  .clear-search:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: -2px;
+  }
+
+  .clear-search svg {
+    width: 20px;
+    height: 20px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
   }
 
   .cards {

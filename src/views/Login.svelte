@@ -1,29 +1,67 @@
 <script>
+  import { getAuthRedirectUrl } from '../lib/authRedirect.js';
   import { supabase } from '../lib/supabase.js';
 
   let email = $state('');
   let password = $state('');
   let isSignUp = $state(false);
+  let isResetMode = $state(false);
   let loading = $state(false);
   let message = $state('');
+  let messageKind = $state('');
 
   async function handleSubmit(event) {
     event.preventDefault();
     loading = true;
     message = '';
+    messageKind = '';
 
-    const redirectTo = new URL(import.meta.env.BASE_URL, window.location.origin).href;
-    const { error } = isSignUp
-      ? await supabase.auth.signUp({ email, password, options: { emailRedirectTo: redirectTo } })
-      : await supabase.auth.signInWithPassword({ email, password });
+    const redirectTo = getAuthRedirectUrl();
+    try {
+      const { error } = isResetMode
+        ? await supabase.auth.resetPasswordForEmail(email, { redirectTo })
+        : isSignUp
+          ? await supabase.auth.signUp({ email, password, options: { emailRedirectTo: redirectTo } })
+          : await supabase.auth.signInWithPassword({ email, password });
 
-    if (error) {
-      message = error.message;
-    } else if (isSignUp) {
-      message = 'Check your email for a confirmation link.';
+      if (error) {
+        message = error.message;
+        messageKind = 'error';
+      } else if (isResetMode) {
+        message = 'Check your email for a password reset link.';
+        messageKind = 'success';
+      } else if (isSignUp) {
+        message = 'Check your email for a confirmation link.';
+        messageKind = 'success';
+      }
+    } catch (err) {
+      message = err.message;
+      messageKind = 'error';
+    } finally {
+      loading = false;
     }
+  }
 
-    loading = false;
+  function showResetMode() {
+    isResetMode = true;
+    isSignUp = false;
+    password = '';
+    message = '';
+    messageKind = '';
+  }
+
+  function showSignIn() {
+    isResetMode = false;
+    isSignUp = false;
+    message = '';
+    messageKind = '';
+  }
+
+  function toggleSignUp() {
+    isSignUp = !isSignUp;
+    isResetMode = false;
+    message = '';
+    messageKind = '';
   }
 </script>
 
@@ -31,7 +69,7 @@
   <div class="brand">
     <div class="mark" aria-hidden="true">F</div>
     <h1>FoodIsLife</h1>
-    <p>{isSignUp ? 'Create your recipe account' : 'Sign in to your recipes'}</p>
+    <p>{isResetMode ? 'Reset your password' : isSignUp ? 'Create your recipe account' : 'Sign in to your recipes'}</p>
   </div>
 
   <form onsubmit={handleSubmit}>
@@ -39,30 +77,39 @@
       <span>Email</span>
       <input type="email" autocomplete="username" bind:value={email} disabled={loading} required />
     </label>
-    <label>
-      <span>Password</span>
-      <input
-        type="password"
-        autocomplete={isSignUp ? 'new-password' : 'current-password'}
-        bind:value={password}
-        disabled={loading}
-        minlength="6"
-        required
-      />
-    </label>
+    {#if !isResetMode}
+      <label>
+        <span>Password</span>
+        <input
+          type="password"
+          autocomplete={isSignUp ? 'new-password' : 'current-password'}
+          bind:value={password}
+          disabled={loading}
+          minlength="6"
+          required
+        />
+      </label>
+    {/if}
 
     {#if message}
-      <p class="message">{message}</p>
+      <p class:error={messageKind === 'error'} class:success={messageKind === 'success'} class="message">{message}</p>
     {/if}
 
     <button class="submit" type="submit" disabled={loading}>
-      {loading ? 'Working...' : isSignUp ? 'Sign up' : 'Sign in'}
+      {loading ? 'Working...' : isResetMode ? 'Send reset link' : isSignUp ? 'Sign up' : 'Sign in'}
     </button>
   </form>
 
-  <button class="toggle" onclick={() => { isSignUp = !isSignUp; message = ''; }}>
-    {isSignUp ? 'Already have an account? Sign in' : "Don't have an account? Sign up"}
-  </button>
+  {#if isResetMode}
+    <button class="toggle" onclick={showSignIn}>Back to sign in</button>
+  {:else}
+    {#if !isSignUp}
+      <button class="toggle" onclick={showResetMode}>Forgot password?</button>
+    {/if}
+    <button class="toggle secondary-toggle" onclick={toggleSignUp}>
+      {isSignUp ? 'Already have an account? Sign in' : "Don't have an account? Sign up"}
+    </button>
+  {/if}
 </main>
 
 <style>
@@ -127,9 +174,16 @@
 
   .message {
     margin: 0;
-    color: var(--color-danger);
     font-size: 13px;
     text-align: center;
+  }
+
+  .message.error {
+    color: var(--color-danger);
+  }
+
+  .message.success {
+    color: var(--color-accent);
   }
 
   .submit {
@@ -152,5 +206,9 @@
     background: none;
     color: var(--color-accent);
     cursor: pointer;
+  }
+
+  .secondary-toggle {
+    margin-top: 10px;
   }
 </style>

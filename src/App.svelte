@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { supabase } from './lib/supabase.js';
   import Login from './views/Login.svelte';
+  import ResetPassword from './views/ResetPassword.svelte';
   import RecipeList from './views/RecipeList.svelte';
   import AddRecipe from './views/AddRecipe.svelte';
   import RecipeDetail from './views/RecipeDetail.svelte';
@@ -12,17 +13,23 @@
   let view = $state('list');
   let selectedRecipeId = $state(null);
   let editingRecipe = $state(null);
+  let searchQuery = $state('');
   let darkMode = $state(false);
   let themeLoaded = false;
   let suppressHistory = false;
 
   onMount(() => {
+    const startedFromRecoveryLink = isPasswordRecoveryRedirect();
     darkMode = localStorage.getItem('foodislife-dark-mode') === 'true';
     applyTheme();
     themeLoaded = true;
 
     if (!history.state?.foodislife) {
-      history.replaceState({ foodislife: true, view: 'list' }, '');
+      history.replaceState({ foodislife: true, view: startedFromRecoveryLink ? 'reset-password' : 'list' }, '');
+    }
+
+    if (startedFromRecoveryLink) {
+      view = 'reset-password';
     }
 
     function handlePopState(event) {
@@ -34,6 +41,10 @@
         selectedRecipeId = state.recipeId;
         editingRecipe = null;
         view = 'detail';
+      } else if (state.view === 'reset-password') {
+        selectedRecipeId = null;
+        editingRecipe = null;
+        view = 'reset-password';
       } else {
         showList();
       }
@@ -44,18 +55,28 @@
 
     window.addEventListener('popstate', handlePopState);
 
-    supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, currentSession) => {
       session = currentSession;
-      loading = false;
-    });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, currentSession) => {
-      session = currentSession;
+      if (event === 'PASSWORD_RECOVERY') {
+        selectedRecipeId = null;
+        editingRecipe = null;
+        view = 'reset-password';
+        history.replaceState({ foodislife: true, view: 'reset-password' }, '');
+      }
       if (!currentSession) {
+        searchQuery = '';
         view = 'list';
         selectedRecipeId = null;
         editingRecipe = null;
       }
+    });
+
+    supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
+      session = currentSession;
+      if (startedFromRecoveryLink && currentSession) {
+        view = 'reset-password';
+      }
+      loading = false;
     });
 
     return () => {
@@ -103,6 +124,25 @@
     pushAppHistory({ view: 'list' });
   }
 
+  function finishPasswordRecovery() {
+    showList();
+    history.replaceState({ foodislife: true, view: 'list' }, '');
+  }
+
+  async function cancelPasswordRecovery() {
+    showList();
+    history.replaceState({ foodislife: true, view: 'list' }, '');
+    await supabase.auth.signOut();
+  }
+
+  function isPasswordRecoveryRedirect() {
+    const searchParams = new URLSearchParams(window.location.search);
+    if (searchParams.get('type') === 'recovery') return true;
+
+    const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+    return hashParams.get('type') === 'recovery';
+  }
+
   function pushAppHistory(state) {
     if (suppressHistory) return;
     const nextState = { foodislife: true, ...state };
@@ -120,6 +160,8 @@
   </div>
 {:else if !session}
   <Login />
+{:else if view === 'reset-password'}
+  <ResetPassword onSaved={finishPasswordRecovery} onCancel={cancelPasswordRecovery} />
 {:else if view === 'add'}
   <AddRecipe onCancel={navigateList} onSaved={openRecipe} />
 {:else if view === 'detail' && selectedRecipeId}
@@ -128,6 +170,7 @@
   <EditRecipe recipe={editingRecipe} onCancel={() => openRecipe(editingRecipe)} onSaved={openRecipe} />
 {:else}
   <RecipeList
+    bind:query={searchQuery}
     {darkMode}
     onDarkModeChange={setDarkMode}
     onAdd={() => { view = 'add'; pushAppHistory({ view: 'add' }); }}
