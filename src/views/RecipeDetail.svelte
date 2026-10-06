@@ -40,7 +40,16 @@
 
   let scale = $derived(recipe ? Number(currentServings || 1) / Number(recipe.base_servings || 1) : 1);
 
-  onMount(load);
+  onMount(() => {
+    load();
+
+    function handlePopState() {
+      selectedPhoto = null;
+    }
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  });
 
   onDestroy(() => {
     releaseWakeLock();
@@ -63,7 +72,7 @@
     if (!selectedPhoto) return;
 
     function handleKeydown(event) {
-      if (event.key === 'Escape') selectedPhoto = null;
+      if (event.key === 'Escape') closePhoto();
     }
 
     window.addEventListener('keydown', handleKeydown);
@@ -245,7 +254,17 @@
 
   function openPhoto(photo) {
     if (!photo.url) return;
+    if (!selectedPhoto) {
+      // Keep the recipe route so Back dismisses the preview without leaving the note.
+      history.pushState({ ...history.state, notePhotoPreview: true }, '');
+    }
     selectedPhoto = photo;
+  }
+
+  function closePhoto() {
+    if (!selectedPhoto) return;
+    selectedPhoto = null;
+    if (history.state?.notePhotoPreview) history.back();
   }
 
   function makeLocalId() {
@@ -363,8 +382,10 @@
           <div class="draft-photo-grid">
             {#each notePhotoDrafts as draft (draft.id)}
               <div class="draft-photo">
-                <img src={draft.url} alt={draft.name || 'Selected attachment'} />
-                <button type="button" onclick={() => removeNotePhotoDraft(draft.id)} aria-label="Remove photo">
+                <button type="button" class="draft-photo-preview" onclick={() => openPhoto(draft)} aria-label={`Preview ${draft.name || 'photo'}`}>
+                  <img src={draft.url} alt={draft.name || 'Selected attachment'} />
+                </button>
+                <button type="button" class="draft-photo-remove" onclick={() => removeNotePhotoDraft(draft.id)} aria-label="Remove photo">
                   <svg aria-hidden="true" viewBox="0 0 24 24">
                     <path d="M18 6 6 18M6 6l12 12"></path>
                   </svg>
@@ -413,11 +434,13 @@
                     {#each editKeptAttachments as attachment (attachment.path)}
                       <div class="draft-photo">
                         {#if attachment.url}
-                          <img src={attachment.url} alt="Note attachment" />
+                          <button type="button" class="draft-photo-preview" onclick={() => openPhoto(attachment)} aria-label="Preview note attachment">
+                            <img src={attachment.url} alt="Note attachment" />
+                          </button>
                         {:else}
                           <span>Unavailable</span>
                         {/if}
-                        <button type="button" onclick={() => removeEditAttachment(attachment.path)} aria-label="Remove photo">
+                        <button type="button" class="draft-photo-remove" onclick={() => removeEditAttachment(attachment.path)} aria-label="Remove photo">
                           <svg aria-hidden="true" viewBox="0 0 24 24">
                             <path d="M18 6 6 18M6 6l12 12"></path>
                           </svg>
@@ -426,8 +449,10 @@
                     {/each}
                     {#each editPhotoDrafts as draft (draft.id)}
                       <div class="draft-photo">
-                        <img src={draft.url} alt={draft.name || 'Selected attachment'} />
-                        <button type="button" onclick={() => removeEditPhotoDraft(draft.id)} aria-label="Remove photo">
+                        <button type="button" class="draft-photo-preview" onclick={() => openPhoto(draft)} aria-label={`Preview ${draft.name || 'photo'}`}>
+                          <img src={draft.url} alt={draft.name || 'Selected attachment'} />
+                        </button>
+                        <button type="button" class="draft-photo-remove" onclick={() => removeEditPhotoDraft(draft.id)} aria-label="Remove photo">
                           <svg aria-hidden="true" viewBox="0 0 24 24">
                             <path d="M18 6 6 18M6 6l12 12"></path>
                           </svg>
@@ -487,9 +512,9 @@
 
 {#if selectedPhoto}
   <div class="photo-viewer" role="dialog" aria-modal="true" aria-label="Note attachment">
-    <button class="photo-backdrop" onclick={() => selectedPhoto = null} aria-label="Close photo"></button>
+    <button class="photo-backdrop" onclick={closePhoto} aria-label="Close photo"></button>
     <div class="photo-frame">
-      <button class="photo-close" onclick={() => selectedPhoto = null} aria-label="Close photo">
+      <button class="photo-close" onclick={closePhoto} aria-label="Close photo">
         <svg aria-hidden="true" viewBox="0 0 24 24">
           <path d="M18 6 6 18M6 6l12 12"></path>
         </svg>
@@ -509,7 +534,7 @@
 
   header {
     position: sticky;
-    top: 0;
+    top: var(--update-bar-height, 0px);
     z-index: 3;
     display: grid;
     grid-template-columns: 44px 1fr 44px;
@@ -766,7 +791,22 @@
     font-weight: 800;
   }
 
-  .draft-photo button {
+  .draft-photo-preview {
+    display: block;
+    width: 100%;
+    height: 100%;
+    padding: 0;
+    border: none;
+    background: transparent;
+    cursor: zoom-in;
+  }
+
+  .draft-photo-preview:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: -2px;
+  }
+
+  .draft-photo-remove {
     position: absolute;
     top: 6px;
     right: 6px;
@@ -781,7 +821,7 @@
     cursor: pointer;
   }
 
-  .draft-photo button svg,
+  .draft-photo-remove svg,
   .photo-close svg {
     width: 17px;
     height: 17px;
