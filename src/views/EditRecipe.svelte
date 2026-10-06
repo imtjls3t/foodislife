@@ -1,7 +1,10 @@
 <script>
+  import { tick } from 'svelte';
+  import { flip } from 'svelte/animate';
   import MacroPanel from '../components/MacroPanel.svelte';
   import { calculateMacros, updateRecipe } from '../lib/supabase.js';
   import {
+    formatIngredientLine,
     makeId,
     normalizeIngredient,
     rebuildStepReferences,
@@ -22,6 +25,21 @@
   let saving = $state(false);
   let calculating = $state(false);
   let error = $state('');
+  let ingredientsElement;
+  let stepsElement;
+  let dragKind = $state(null);
+  let draggedItemId = $state(null);
+  let dragPointerY = $state(0);
+  let dragPreviewLeft = $state(0);
+  let dragPreviewWidth = $state(0);
+  let dragPreviewHeight = $state(0);
+  let reorderAnnouncement = $state('');
+  let dragOffsetY = $state(0);
+  let dragPointerId = null;
+  let dragStartIndex = -1;
+
+  let draggedIngredient = $derived(dragKind === 'ingredient' && ingredients.find((ingredient) => ingredient.id === draggedItemId));
+  let draggedStep = $derived(dragKind === 'step' && steps.find((step) => step.id === draggedItemId));
 
   $effect(() => {
     if (loadedRecipeId === recipe.id) return;
@@ -85,6 +103,115 @@
     steps = steps.filter((_, currentIndex) => currentIndex !== index);
   }
 
+  function getReorderItems(kind) {
+    return kind === 'ingredient' ? ingredients : steps;
+  }
+
+  function moveItem(kind, fromIndex, toIndex) {
+    const items = getReorderItems(kind);
+    if (
+      fromIndex === toIndex
+      || fromIndex < 0
+      || fromIndex >= items.length
+      || toIndex < 0
+      || toIndex >= items.length
+    ) return;
+
+    const reordered = [...items];
+    const [movedItem] = reordered.splice(fromIndex, 1);
+    reordered.splice(toIndex, 0, movedItem);
+    if (kind === 'ingredient') ingredients = reordered;
+    else steps = reordered;
+  }
+
+  function startDrag(event, kind, itemId) {
+    if (draggedItemId !== null || !event.isPrimary) return;
+    if (event.pointerType === 'mouse' && event.button !== 0) return;
+
+    const row = event.currentTarget.closest(`[data-reorder-id]`);
+    if (!row) return;
+
+    event.preventDefault();
+    // Keep capture on the list, since keyed rows can move during a drag.
+    const list = kind === 'ingredient' ? ingredientsElement : stepsElement;
+    list.setPointerCapture(event.pointerId);
+
+    const bounds = row.getBoundingClientRect();
+    dragKind = kind;
+    draggedItemId = itemId;
+    dragPointerId = event.pointerId;
+    dragPointerY = event.clientY;
+    dragOffsetY = event.clientY - bounds.top;
+    dragPreviewLeft = bounds.left;
+    dragPreviewWidth = bounds.width;
+    dragPreviewHeight = bounds.height;
+    dragStartIndex = getReorderItems(kind).findIndex((item) => item.id === itemId);
+  }
+
+  function updateDrag(event) {
+    if (draggedItemId === null || event.pointerId !== dragPointerId) return;
+
+    event.preventDefault();
+    dragPointerY = event.clientY;
+    scrollWhileDragging(event.clientY);
+
+    const list = dragKind === 'ingredient' ? ingredientsElement : stepsElement;
+    const rows = Array.from(list?.querySelectorAll('[data-reorder-id]') || []);
+    const remainingRows = rows.filter((row) => row.dataset.reorderId !== draggedItemId);
+    let targetIndex = remainingRows.length;
+
+    for (const [index, row] of remainingRows.entries()) {
+      const bounds = row.getBoundingClientRect();
+      if (event.clientY < bounds.top + bounds.height / 2) {
+        targetIndex = index;
+        break;
+      }
+    }
+
+    const currentIndex = getReorderItems(dragKind).findIndex((item) => item.id === draggedItemId);
+    moveItem(dragKind, currentIndex, targetIndex);
+  }
+
+  function finishDrag(event) {
+    if (draggedItemId === null || event.pointerId !== dragPointerId) return;
+
+    const finalIndex = getReorderItems(dragKind).findIndex((item) => item.id === draggedItemId);
+    if (finalIndex !== dragStartIndex) {
+      const label = dragKind === 'ingredient' ? 'Ingredient' : 'Step';
+      reorderAnnouncement = `${label} moved to position ${finalIndex + 1}.`;
+    }
+
+    draggedItemId = null;
+    dragKind = null;
+    dragPointerId = null;
+    dragStartIndex = -1;
+  }
+
+  async function handleDragKeydown(event, kind, index) {
+    if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return;
+
+    event.preventDefault();
+    if (draggedItemId !== null) return;
+    const targetIndex = event.key === 'ArrowUp' ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= getReorderItems(kind).length) return;
+
+    const handle = event.currentTarget;
+    moveItem(kind, index, targetIndex);
+    const label = kind === 'ingredient' ? 'Ingredient' : 'Step';
+    reorderAnnouncement = `${label} moved to position ${targetIndex + 1}.`;
+    await tick();
+    handle.focus({ preventScroll: true });
+  }
+
+  function scrollWhileDragging(pointerY) {
+    const edgeSize = 72;
+    if (pointerY < edgeSize) {
+      window.scrollBy({ top: -12, behavior: 'auto' });
+    } else if (pointerY > window.innerHeight - edgeSize) {
+      window.scrollBy({ top: 12, behavior: 'auto' });
+    }
+  }
+
   function setServings(value) {
     baseServings = Math.max(1, Number(value) || 1);
     markMacrosStale();
@@ -139,6 +266,13 @@
   }
 </script>
 
+<svelte:window
+  onpointermove={updateDrag}
+  onpointerup={finishDrag}
+  onpointercancel={finishDrag}
+  onlostpointercapture={finishDrag}
+/>
+
 <main class="edit-view">
   <header>
     <button class="icon-button" onclick={onCancel} aria-label="Cancel edit">
@@ -175,9 +309,14 @@
       <button class="small" onclick={addIngredient}>Add</button>
     </div>
 
-    <div class="ingredients">
+    <div class="ingredients" bind:this={ingredientsElement}>
       {#each ingredients as ingredient, index (ingredient.id)}
-        <div class="ingredient-row">
+        <div
+          class="ingredient-row"
+          class:is-dragging={dragKind === 'ingredient' && draggedItemId === ingredient.id}
+          data-reorder-id={ingredient.id}
+          animate:flip={{ duration: 140 }}
+        >
           <input
             class="amount"
             type="number"
@@ -219,11 +358,23 @@
             value={ingredient.note}
             oninput={(event) => updateIngredient(index, { note: event.currentTarget.value })}
           />
-          <button class="remove" onclick={() => removeIngredient(index)} aria-label="Remove ingredient">
-            <svg aria-hidden="true" viewBox="0 0 24 24">
-              <path d="M18 6 6 18M6 6l12 12"></path>
-            </svg>
-          </button>
+          <div class="ingredient-actions">
+            <button
+              class="drag-handle ingredient-handle"
+              aria-label={`Drag to reorder ingredient ${index + 1}. Use arrow keys to move it when focused.`}
+              aria-keyshortcuts="ArrowUp ArrowDown"
+              title="Drag to reorder"
+              onpointerdown={(event) => startDrag(event, 'ingredient', ingredient.id)}
+              onkeydown={(event) => handleDragKeydown(event, 'ingredient', index)}
+            >
+              {@render ingredientGrip()}
+            </button>
+            <button class="remove" onclick={() => removeIngredient(index)} aria-label="Remove ingredient">
+              <svg aria-hidden="true" viewBox="0 0 24 24">
+                <path d="M18 6 6 18M6 6l12 12"></path>
+              </svg>
+            </button>
+          </div>
         </div>
       {/each}
     </div>
@@ -231,17 +382,41 @@
 
   <section class="panel">
     <div class="section-head">
-      <h2>Procedure</h2>
+      <div>
+        <h2>Procedure</h2>
+        <p>Drag the handles to reorder steps</p>
+      </div>
       <button class="small" onclick={addStep}>Add</button>
     </div>
 
-    <div class="steps">
+    <div class="steps" bind:this={stepsElement}>
       {#each steps as step, index (step.id)}
-        <div class="step-row">
-          <span>{index + 1}</span>
+        <div
+          class:is-dragging={dragKind === 'step' && draggedItemId === step.id}
+          class="step-row"
+          data-reorder-id={step.id}
+          animate:flip={{ duration: 140 }}
+        >
+          <button
+            class="drag-handle"
+            aria-label={`Drag to reorder step ${index + 1}. Use arrow keys to move it when focused.`}
+            aria-keyshortcuts="ArrowUp ArrowDown"
+            title="Drag to reorder"
+            onpointerdown={(event) => startDrag(event, 'step', step.id)}
+            onkeydown={(event) => handleDragKeydown(event, 'step', index)}
+          >
+            <span>{index + 1}</span>
+            <svg aria-hidden="true" viewBox="0 0 24 16">
+              <circle cx="8" cy="4" r="1.5"></circle>
+              <circle cx="16" cy="4" r="1.5"></circle>
+              <circle cx="8" cy="12" r="1.5"></circle>
+              <circle cx="16" cy="12" r="1.5"></circle>
+            </svg>
+          </button>
           <textarea
             rows="3"
             placeholder="Step"
+            aria-label={`Step ${index + 1}`}
             value={step.text}
             oninput={(event) => updateStep(index, event.currentTarget.value)}
           ></textarea>
@@ -254,6 +429,40 @@
       {/each}
     </div>
   </section>
+
+  <p class="sr-only" aria-live="polite">{reorderAnnouncement}</p>
+
+  {#if draggedIngredient}
+    <div
+      class="ingredient-drag-preview"
+      style={`top: ${dragPointerY - dragOffsetY}px; left: ${dragPreviewLeft}px; width: ${dragPreviewWidth}px; min-height: ${dragPreviewHeight}px;`}
+      aria-hidden="true"
+    >
+      <div class="ingredient-drag-text">{formatIngredientLine(draggedIngredient)}</div>
+      <div class="drag-handle ingredient-handle">{@render ingredientGrip()}</div>
+      <span></span>
+    </div>
+  {/if}
+
+  {#if draggedStep}
+    <div
+      class="step-drag-preview"
+      style={`top: ${dragPointerY - dragOffsetY}px; left: ${dragPreviewLeft}px; width: ${dragPreviewWidth}px; min-height: ${dragPreviewHeight}px;`}
+      aria-hidden="true"
+    >
+      <div class="drag-handle preview-handle">
+        <span>{steps.findIndex((step) => step.id === draggedItemId) + 1}</span>
+        <svg viewBox="0 0 24 16">
+          <circle cx="8" cy="4" r="1.5"></circle>
+          <circle cx="16" cy="4" r="1.5"></circle>
+          <circle cx="8" cy="12" r="1.5"></circle>
+          <circle cx="16" cy="12" r="1.5"></circle>
+        </svg>
+      </div>
+      <div class="step-drag-text">{draggedStep.text || 'Empty step'}</div>
+      <span></span>
+    </div>
+  {/if}
 
   <section class="panel">
     <div class="section-head">
@@ -287,6 +496,17 @@
   </div>
 </main>
 
+{#snippet ingredientGrip()}
+  <svg aria-hidden="true" viewBox="0 0 24 24">
+    <circle cx="8" cy="5" r="1.5"></circle>
+    <circle cx="16" cy="5" r="1.5"></circle>
+    <circle cx="8" cy="12" r="1.5"></circle>
+    <circle cx="16" cy="12" r="1.5"></circle>
+    <circle cx="8" cy="19" r="1.5"></circle>
+    <circle cx="16" cy="19" r="1.5"></circle>
+  </svg>
+{/snippet}
+
 <style>
   .edit-view {
     min-height: 100dvh;
@@ -297,7 +517,7 @@
 
   header {
     position: sticky;
-    top: 0;
+    top: var(--update-bar-height, 0px);
     z-index: 3;
     display: grid;
     grid-template-columns: 44px 1fr auto;
@@ -427,29 +647,122 @@
 
   .ingredient-row {
     display: grid;
-    grid-template-columns: minmax(66px, 0.7fr) minmax(78px, 0.8fr) minmax(84px, 0.8fr) minmax(150px, 1.6fr) minmax(120px, 1.1fr) 40px;
+    grid-template-columns: minmax(66px, 0.7fr) minmax(78px, 0.8fr) minmax(84px, 0.8fr) minmax(150px, 1.6fr) minmax(120px, 1.1fr) 88px;
     gap: 8px;
     align-items: center;
   }
 
   .step-row {
     display: grid;
-    grid-template-columns: 28px 1fr 40px;
+    grid-template-columns: 40px 1fr 40px;
     gap: 8px;
     align-items: start;
   }
 
-  .step-row > span {
+  .ingredient-actions {
+    display: flex;
+    gap: 8px;
+    justify-self: end;
+  }
+
+  .drag-handle {
+    width: 40px;
+    min-height: 76px;
+    display: grid;
+    place-items: center;
+    align-content: center;
+    gap: 4px;
+    padding: 5px 0;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    background: var(--color-surface-alt);
+    color: var(--color-muted-strong);
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+  }
+
+  .drag-handle:active {
+    cursor: grabbing;
+  }
+
+  .drag-handle > span {
     display: grid;
     place-items: center;
     width: 28px;
     height: 28px;
-    margin-top: 7px;
     border-radius: 50%;
     background: var(--color-accent-soft);
     color: var(--color-accent-text);
     font-size: 13px;
     font-weight: 900;
+  }
+
+  .drag-handle svg {
+    width: 24px;
+    height: 16px;
+    fill: currentColor;
+  }
+
+  .ingredient-handle {
+    min-height: 40px;
+    height: 40px;
+  }
+
+  .ingredient-handle svg {
+    height: 24px;
+  }
+
+  .ingredient-row.is-dragging,
+  .step-row.is-dragging {
+    opacity: 0.24;
+  }
+
+  .step-drag-preview,
+  .ingredient-drag-preview {
+    position: fixed;
+    z-index: 20;
+    display: grid;
+    grid-template-columns: 40px 1fr 40px;
+    gap: 8px;
+    align-items: start;
+    padding: 4px;
+    border: 1px solid var(--color-accent);
+    border-radius: 10px;
+    background: var(--color-surface);
+    box-shadow: var(--shadow-floating);
+    pointer-events: none;
+  }
+
+  .ingredient-drag-preview {
+    grid-template-columns: minmax(0, 1fr) 40px 40px;
+    align-items: center;
+  }
+
+  .ingredient-drag-text {
+    padding: 8px;
+    overflow-wrap: anywhere;
+    font-size: 15px;
+  }
+
+  .preview-handle {
+    min-height: 68px;
+    border-color: var(--color-accent);
+    cursor: grabbing;
+  }
+
+  .step-drag-text {
+    min-height: 68px;
+    max-height: 112px;
+    overflow: hidden;
+    padding: 11px 12px;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    background: var(--color-surface);
+    color: var(--color-text);
+    font-size: 15px;
+    line-height: 1.35;
+    white-space: pre-wrap;
   }
 
   .remove {
@@ -491,14 +804,17 @@
     text-align: center;
   }
 
-  @media (max-width: 720px) {
+  @media (max-width: 800px) {
     .ingredient-row {
-      grid-template-columns: minmax(68px, 0.8fr) minmax(78px, 0.8fr) minmax(84px, 0.9fr) 40px;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(88px, 1fr);
     }
 
-    .ingredient-row .name,
-    .ingredient-row .note {
+    .ingredient-row .name {
       grid-column: 1 / -1;
+    }
+
+    .ingredient-row .note {
+      grid-column: 1 / 3;
     }
   }
 </style>
